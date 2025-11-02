@@ -1,4 +1,3 @@
--- Table to store sensor readings that exceeded the threshold
 create table if not exists public.sensor_readings (
   id uuid primary key default gen_random_uuid(),
   temperature numeric(6,2) not null,
@@ -9,7 +8,6 @@ create table if not exists public.sensor_readings (
 create index if not exists sensor_readings_recorded_at_idx
   on public.sensor_readings (recorded_at desc);
 
--- Table to store user-defined thresholds from the control tab
 create table if not exists public.threshold_settings (
   id uuid primary key default gen_random_uuid(),
   value numeric(6,2) not null,

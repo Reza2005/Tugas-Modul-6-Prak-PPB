@@ -13,7 +13,7 @@ app.use(express.json());
 app.use("/api/readings", readingsRoutes);
 app.use("/api/thresholds", thresholdsRoutes);
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 5000;
 app.listen(port, '0.0.0.0', () => {
   console.log(`Backend server running on port ${port}`);
 });

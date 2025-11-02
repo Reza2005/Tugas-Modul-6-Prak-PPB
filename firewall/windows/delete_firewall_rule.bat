@@ -1,5 +1,5 @@
 @echo off
-set PORT=3000
+set PORT=5000
 set RULE_NAME="Local Backend Server Port %PORT%"
 
 netsh advfirewall firewall delete rule name=%RULE_NAME% dir=in protocol=TCP localport=%PORT%

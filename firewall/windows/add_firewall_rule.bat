@@ -1,5 +1,5 @@
 @echo off
-set PORT=3000
+set PORT=5000
 set RULE_NAME="Local Backend Server Port %PORT%"
 
 netsh advfirewall firewall add rule name=%RULE_NAME% dir=in action=allow protocol=TCP localport=%PORT%
