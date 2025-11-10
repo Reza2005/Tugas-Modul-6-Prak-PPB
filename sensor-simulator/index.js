@@ -1,8 +1,8 @@
 import mqtt from "mqtt";
 
 const BROKER_URL = "mqtt://broker.hivemq.com:1883";
-const TOPIC = "ppb/kelXX/iot/temperature";
-const BACKEND_BASE_URL = "http://localhost:5000";
+const TOPIC = "ppb/kel22/iot/temperature";
+const BACKEND_BASE_URL = "http://localhost:3000";
 const PUBLISH_INTERVAL_MS = 5000;
 
 const clientId = `simulator-${Math.random().toString(16).slice(2)}`;
@@ -41,7 +41,10 @@ async function publishLoop() {
 
   setInterval(async () => {
     const temperature = Number((Math.random() * 15 + 20).toFixed(2));
-    const payload = JSON.stringify({ temperature, timestamp: new Date().toISOString() });
+    const payload = JSON.stringify({
+      temperature,
+      timestamp: new Date().toISOString(),
+    });
 
     client.publish(TOPIC, payload, { qos: 0 }, (error) => {
       if (error) {
@@ -60,7 +63,10 @@ async function publishLoop() {
         const response = await fetch(`${BACKEND_BASE_URL}/api/readings`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ temperature, threshold_value: latestThreshold }),
+          body: JSON.stringify({
+            temperature,
+            threshold_value: latestThreshold,
+          }),
         });
 
         if (!response.ok) {
