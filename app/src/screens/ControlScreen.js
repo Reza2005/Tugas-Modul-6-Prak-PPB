@@ -9,24 +9,19 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Button, // Ditambahkan untuk tombol Login
-  Alert,  // Ditambahkan untuk notifikasi
+  Button,
+  Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Imports untuk fitur baru
 import simpleAuth from '../auth/simpleAuth';
-import api from '../services/api'; // Wrapper API token-aware
-// Asumsi komponen ini tersedia
+import api from '../services/api'; 
 import { DataTable } from "../components/DataTable.js"; 
 
-// Menggunakan export default dan menerima navigation
 export default function ControlScreen({ navigation }) {
-  // State Autentikasi (Fitur Baru)
-  const [user, setUser] = useState(simpleAuth.getUser()); //
+  const [user, setUser] = useState(simpleAuth.getUser()); 
 
-  // State Threshold (UI Lama)
   const [thresholdValue, setThresholdValue] = useState(30);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,11 +29,10 @@ export default function ControlScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // --- LOGIC AUTHENTICATION & DATA FETCH ---
+  // --- LOGIC FETCH HISTORY (Dibuat Super Robust) ---
 
   const fetchHistory = useCallback(async () => {
-    // Memerlukan token untuk fetch history (asumsi rute thresholds diproteksi)
-    const token = simpleAuth.getToken(); //
+    const token = simpleAuth.getToken();
     if (!token) {
       setHistory([]);
       return; 
@@ -49,17 +43,19 @@ export default function ControlScreen({ navigation }) {
     try {
       // Menggunakan api.get token-aware
       const data = await api.get("/api/thresholds"); 
-      // Asumsi data array berada di root atau di properti 'data'
       setHistory(data?.data ?? data ?? []); 
     } catch (err) {
-      console.error('Fetch thresholds error', err);
+      console.error('Fetch thresholds error (Server Crash)', err);
+
+      // Menangani kegagalan koneksi/crash server dengan menampilkan pesan
+      setHistory([]);
+      setError("Gagal memuat riwayat: Koneksi server terputus atau terjadi kegagalan data."); 
+
       // Jika error 401, bersihkan auth state
       if (err?.status === 401) {
           simpleAuth.clearAuth();
           setUser(null);
           Alert.alert('Sesi Berakhir', 'Sesi login Anda telah berakhir. Silakan login kembali.');
-      } else {
-        setError(err.message || "Failed to fetch threshold history.");
       }
     } finally {
       setLoading(false);
@@ -68,13 +64,8 @@ export default function ControlScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      // 1. Refresh Status User saat layar fokus
       setUser(simpleAuth.getUser());
-
-      // 2. Fetch History Data (hanya jika ada user)
       fetchHistory();
-
-      // Listener ini tidak perlu dibersihkan secara eksplisit karena useFocusEffect sudah menanganinya
     }, [fetchHistory])
   );
   // --- END LOGIC ---
@@ -83,11 +74,10 @@ export default function ControlScreen({ navigation }) {
   const latestThreshold = useMemo(() => history?.[0]?.value ?? null, [history]);
 
   const handleSubmit = useCallback(async () => {
-    // PROTECTION: Check for token before submission
-    const token = simpleAuth.getToken(); //
+    const token = simpleAuth.getToken();
     if (!token) {
       Alert.alert('Akses Ditolak', 'Hanya pengguna yang login dapat mengirim perintah. Silakan login dulu.');
-      navigation.navigate('Login'); // Redirect to login
+      navigation.navigate('Login');
       return;
     }
     

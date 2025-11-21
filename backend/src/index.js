@@ -1,10 +1,15 @@
-// backend/src/index.js (ES MODULE VERSION)
+// backend/src/index.js (KODE FINAL & LENGKAP)
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import fs from 'fs';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
+// Impor model yang dibutuhkan
+import { ReadingsModel } from "./models/readingsModel.js"; // <-- WAJIB
+// Impor rute yang tersisa
+import thresholdsRoutes from "./routes/thresholdsRoutes.js"; 
+import readingsRoutes from "./routes/readingsRoutes.js"; 
 import {
   loginHandler,
   logoutHandler,
@@ -12,54 +17,48 @@ import {
   listTokens
 } from './auth.js';
 
-// Konversi __dirname di ES module
+dotenv.config();
+
+// Konversi __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Root health check
+const port = process.env.PORT || 3000;
+
 app.get('/', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
-// Auth routes
+// RUTE AUTENTIKASI
 app.post('/auth/login', loginHandler);
 app.post('/auth/logout', logoutHandler);
-app.get('/auth/tokens', listTokens); // dev only
+app.get('/auth/tokens', listTokens); 
 
-// Dummy data untuk monitoring
-const DUMMY_READINGS = (() => {
-  const arr = [];
-  const now = Date.now();
-  for (let i = 1; i <= 200; i++) {
-    arr.push({
-      id: i,
-      sensor: 'S' + ((i % 5) + 1),
-      value: Math.round(Math.random() * 100),
-      ts: new Date(now - i * 1000).toISOString()
-    });
-  }
-  return arr;
-})();
+// =================================================================
+// RUTE MONITORING DAN CONTROL MANUAL (MENGAMBIL DATA DARI DB)
+// =================================================================
 
-// Public monitoring with pagination
-app.get('/readings', (req, res) => {
+// Public monitoring with pagination (MENGAMBIL DATA DARI DB)
+app.get('/readings', async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
   const size = Math.max(1, parseInt(req.query.size || '10', 10));
 
-  const start = (page - 1) * size;
-  const end = start + size;
+  try {
+    const { data, total } = await ReadingsModel.listWithPagination(page, size); 
 
-  res.json({
-    page,
-    size,
-    total: DUMMY_READINGS.length,
-    data: DUMMY_READINGS.slice(start, end)
-  });
+    res.json({
+      page,
+      size,
+      total,
+      data
+    });
+  } catch (error) {
+    console.error("Error fetching paginated readings from DB:", error);
+    res.status(500).json({ error: "Failed to fetch readings from database." });
+  }
 });
 
 // Protected control
@@ -74,30 +73,17 @@ app.post('/control/do', authMiddleware, (req, res) => {
   });
 });
 
-// Auto-mount routes folder if exists
-const routesDir = path.join(__dirname, 'routes');
+// =================================================================
+// API ROUTES (YANG DIPASANG DARI FOLDER ROUTES)
+// =================================================================
 
-if (fs.existsSync(routesDir)) {
-  const files = fs.readdirSync(routesDir);
+// Route API untuk Thresholds
+app.use("/api/thresholds", thresholdsRoutes);
 
-  for (const file of files) {
-    if (!file.endsWith('.js')) continue;
+// Route API untuk Readings (POST untuk simulator)
+app.use("/api/readings", readingsRoutes);
 
-    const routePath = `./routes/${file}`;
-    const { default: routeModule } = await import(routePath);
 
-    // route name = filename without extension
-    const base = file.replace('.js', '');
-
-    // PERBAIKAN: Hapus if/else block yang sebelumnya salah menerapkan authMiddleware
-    // Semua router dipasang secara normal, biarkan file rute (thresholdsRoutes.js) 
-    // yang menentukan proteksi per rutenya.
-    app.use(`/api/${base}`, routeModule);
-
-    console.log(`Mounted route: /api/${base}`);
-  }
-}
-
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Backend server running on port ${port}`);
 });
