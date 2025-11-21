@@ -1,5 +1,3 @@
-// reza2005/tugas-modul-6-prak-ppb/Tugas-Modul-6-Prak-PPB-55b049ffc55914d79037daa24bf76aaa79ebf5a3/app/App.js
-
 import { useEffect } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -9,11 +7,11 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { enableScreens } from "react-native-screens";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-// MEMPERBAIKI: Mengubah import menjadi default import
+// Imports semua screen yang diperlukan
 import MonitoringScreen from "./src/screens/MonitoringScreen.js";
 import ControlScreen from "./src/screens/ControlScreen.js";
-import LoginScreen from "./src/screens/LoginScreen.js"; // Import LoginScreen
-import ProfileScreen from "./src/screens/ProfileScreen.js"; // Import ProfileScreen
+import LoginScreen from "./src/screens/LoginScreen.js"; 
+import ProfileScreen from "./src/screens/ProfileScreen.js"; 
 
 import { assertConfig } from "./src/services/config.js";
 
@@ -22,23 +20,34 @@ const Stack = createNativeStackNavigator(); // Mendefinisikan Stack Navigator
 
 enableScreens(true);
 
-// Komponen terpisah untuk Tab Navigator (Monitoring & Control)
+// Komponen MainTabs: Sekarang berisi Monitoring, Control, dan Profile
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        // Menonaktifkan header di Tab Navigator karena akan ditangani oleh Stack Navigator
+        // Menonaktifkan header di Tab Navigator (header ditangani Stack)
         headerShown: false, 
         tabBarActiveTintColor: "#2563eb",
         tabBarInactiveTintColor: "#94a3b8",
-        tabBarIcon: ({ color, size }) => {
-          const iconName = route.name === "Monitoring" ? "analytics" : "options";
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'Monitoring') {
+            iconName = focused ? 'speedometer' : 'speedometer-outline';
+          } else if (route.name === 'Control') {
+            iconName = focused ? 'options' : 'options-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
       <Tab.Screen name="Monitoring" component={MonitoringScreen} />
       <Tab.Screen name="Control" component={ControlScreen} />
+      {/* BARU: Profile ditambahkan sebagai Tab utama */}
+      <Tab.Screen name="Profile" component={ProfileScreen} /> 
     </Tab.Navigator>
   );
 }
@@ -70,15 +79,15 @@ export default function App() {
             headerTitleStyle: { fontWeight: "600", fontSize: 18 },
           }}
         >
-          {/* MainTabs adalah layar utama yang berisi Monitoring dan Control */}
+          {/* MainTabs adalah Tab Navigator (Monitoring, Control, Profile) */}
           <Stack.Screen 
             name="Main" 
             component={MainTabs} 
-            options={{ headerShown: false }} // Tab Navigator akan mengelola header-nya sendiri
+            options={{ headerShown: false }} // Tab Navigator tidak menampilkan header Stack
           />
-          {/* Layar Login dan Profil sebagai layar terpisah dalam Stack */}
+          {/* Layar Login sebagai Stack Screen terpisah (bisa diakses dari mana saja) */}
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
+          {/* Catatan: ProfileScreen tidak lagi di sini karena sudah di dalam MainTabs */}
         </Stack.Navigator>
       </NavigationContainer>  
     </SafeAreaProvider>
