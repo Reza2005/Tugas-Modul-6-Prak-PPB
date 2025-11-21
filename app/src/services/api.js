@@ -1,6 +1,6 @@
 // app/src/services/api.js
 // Simple API wrapper using fetch. Adjust BASE_URL.
-const BASE_URL = 'http://192.168.1.10:3000'; // ganti dengan host/backend port, contoh http://192.168.1.10:3000
+const BASE_URL = 'http://192.168.1.44:3000'; // ganti dengan host/backend port, contoh http://192.168.1.10:3000
 import simpleAuth from '../auth/simpleAuth';
 
 async function request(path, opts = {}) {
