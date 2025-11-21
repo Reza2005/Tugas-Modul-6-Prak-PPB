@@ -89,11 +89,10 @@ if (fs.existsSync(routesDir)) {
     // route name = filename without extension
     const base = file.replace('.js', '');
 
-    if (base === 'thresholdsRoutes') {
-      app.use(`/api/${base}`, authMiddleware, routeModule);
-    } else {
-      app.use(`/api/${base}`, routeModule);
-    }
+    // PERBAIKAN: Hapus if/else block yang sebelumnya salah menerapkan authMiddleware
+    // Semua router dipasang secara normal, biarkan file rute (thresholdsRoutes.js) 
+    // yang menentukan proteksi per rutenya.
+    app.use(`/api/${base}`, routeModule);
 
     console.log(`Mounted route: /api/${base}`);
   }

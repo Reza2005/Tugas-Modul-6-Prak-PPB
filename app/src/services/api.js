@@ -1,6 +1,6 @@
-// app/src/services/api.js
+// app/src/services/api.js (Perubahan di fungsi request)
 // Simple API wrapper using fetch. Adjust BASE_URL.
-const BASE_URL = 'http://192.168.1.44:3000'; // ganti dengan host/backend port, contoh http://192.168.1.10:3000
+const BASE_URL = 'http://192.168.1.44:3000'; // Pastikan IP dan Port Anda sudah benar
 import simpleAuth from '../auth/simpleAuth';
 
 async function request(path, opts = {}) {
@@ -9,7 +9,7 @@ async function request(path, opts = {}) {
   headers['Content-Type'] = headers['Content-Type'] || 'application/json';
 
   // attach token if available (header 'token' or Authorization Bearer)
-  const token = simpleAuth.getToken();
+  const token = simpleAuth.getToken(); //
   if (token) {
     headers['token'] = token; // backend menerima header 'token' or Bearer
     // headers['Authorization'] = 'Bearer ' + token; // alternative
@@ -18,18 +18,38 @@ async function request(path, opts = {}) {
   const finalOpts = Object.assign({}, opts, { headers });
 
   const res = await fetch(url, finalOpts);
-  let text = await res.text();
-  try {
-    const json = JSON.parse(text || 'null');
-    if (!res.ok) {
-      throw { status: res.status, body: json };
-    }
-    return json;
-  } catch (e) {
-    // if response not JSON, rethrow or return raw
-    if (res.ok) return text;
-    throw e;
+  
+  // Periksa apakah respons adalah JSON sebelum mencoba parse
+  const isJsonResponse = res.headers.get('content-type')?.includes('application/json');
+  
+  let json = null;
+  let text = null;
+
+  if (isJsonResponse) {
+      try {
+          json = await res.json();
+      } catch (e) {
+          // Gagal parse JSON, mungkin body-nya kosong atau ada error formatting
+          text = await res.text();
+          throw { status: res.status, body: text, error: "Invalid JSON response" };
+      }
+  } else {
+      // Jika bukan JSON (misalnya HTML error), baca sebagai teks
+      text = await res.text();
   }
+
+  if (!res.ok) {
+      // Jika status error (4xx atau 5xx)
+      // Throw error dengan body yang lebih informatif (JSON atau teks)
+      throw { 
+          status: res.status, 
+          body: json || text, 
+          error: json?.error || String(text).slice(0, 100) || `HTTP Error ${res.status}` 
+      };
+  }
+
+  // Jika sukses, kembalikan JSON (atau teks jika body kosong/non-json)
+  return json ?? text;
 }
 
 export default {
