@@ -1,154 +1,75 @@
-import { useCallback, useState } from "react";
-import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  RefreshControl,
-  ActivityIndicator,
-} from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import { useMqttSensor } from "../hooks/useMqttSensor.js";
-import { Api } from "../services/api.js";
-import { DataTable } from "../components/DataTable.js";
-import { SafeAreaView } from "react-native-safe-area-context";
+// app/src/screens/MonitoringScreen.js
+import React, { useEffect, useState } from 'react';
+import { View, Text, Button, FlatList, ActivityIndicator } from 'react-native';
+import api from '../services/api';
 
-export function MonitoringScreen() {
-  const { temperature, timestamp, connectionState, error: mqttError } = useMqttSensor();
-  const [readings, setReadings] = useState([]);
+export default function MonitoringScreen({ navigation }) {
+  const [data, setData] = useState([]);
+  const [page, setPage] = useState(1);
+  const size = 10; // page size
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [apiError, setApiError] = useState(null);
 
-  const fetchReadings = useCallback(async () => {
+  const fetchPage = async (p = 1) => {
     setLoading(true);
-    setApiError(null);
     try {
-      const data = await Api.getSensorReadings();
-      setReadings(data ?? []);
+      const res = await api.get(`/readings?page=${p}&size=${size}`);
+      if (res && res.data) {
+        setData(res.data);
+        setTotal(res.total || 0);
+        setPage(res.page || p);
+      } else if (Array.isArray(res)) {
+        // fallback if backend returns array
+        setData(res);
+        setTotal(res.length);
+        setPage(p);
+      } else {
+        setData([]);
+      }
     } catch (err) {
-      setApiError(err.message);
+      console.error('Fetch readings error', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchPage(1);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchReadings();
-    }, [fetchReadings])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await fetchReadings();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [fetchReadings]);
+  const hasNext = page * size < total;
+  const hasPrev = page > 1;
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Realtime Temperature</Text>
-        <View style={styles.valueRow}>
-          <Text style={styles.temperatureText}>
-            {typeof temperature === "number" ? `${temperature.toFixed(2)}°C` : "--"}
-          </Text>
+    <View style={{ flex:1, padding: 12 }}>
+      <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+        <Text style={{ fontSize:18, fontWeight:'bold' }}>Monitoring</Text>
+        <View style={{ flexDirection:'row', gap:8 }}>
+          <Button title="Profile" onPress={() => navigation.navigate('Profile')} />
+          <Button title="Control" onPress={() => navigation.navigate('Control')} />
         </View>
-        <Text style={styles.metaText}>MQTT status: {connectionState}</Text>
-        {timestamp && (
-          <Text style={styles.metaText}>
-            Last update: {new Date(timestamp).toLocaleString()}
-          </Text>
-        )}
-        {mqttError && <Text style={styles.errorText}>MQTT error: {mqttError}</Text>}
       </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Triggered Readings History</Text>
-        {loading && <ActivityIndicator />}
+      {loading ? <ActivityIndicator style={{ marginTop:12 }} /> : (
+        <FlatList
+          style={{ marginTop:12 }}
+          data={data}
+          keyExtractor={(item, idx) => String(item.id ?? idx)}
+          renderItem={({ item }) => (
+            <View style={{ padding:8, borderBottomWidth:1 }}>
+              <Text>id: {item.id} | sensor: {item.sensor} | value: {item.value}</Text>
+              <Text style={{ fontSize:11, color:'#555' }}>{item.ts}</Text>
+            </View>
+          )}
+          ListEmptyComponent={() => <Text>{loading ? 'Loading...' : 'Tidak ada data'}</Text>}
+        />
+      )}
+
+      <View style={{ flexDirection:'row', justifyContent:'space-between', marginTop:12 }}>
+        <Button title="Sebelumnya" onPress={() => fetchPage(page - 1)} disabled={!hasPrev} />
+        <Text style={{ alignSelf:'center' }}>Halaman {page} / {Math.max(1, Math.ceil(total/size))}</Text>
+        <Button title="Berikutnya" onPress={() => fetchPage(page + 1)} disabled={!hasNext} />
       </View>
-      {apiError && <Text style={styles.errorText}>Failed to load history: {apiError}</Text>}
-      <DataTable
-        columns={[
-          {
-            key: "recorded_at",
-            title: "Timestamp",
-            render: (value) => (value ? new Date(value).toLocaleString() : "--"),
-          },
-          {
-            key: "temperature",
-            title: "Temperature (°C)",
-            render: (value) =>
-              typeof value === "number" ? `${Number(value).toFixed(2)}` : "--",
-          },
-          {
-            key: "threshold_value",
-            title: "Threshold (°C)",
-            render: (value) =>
-              typeof value === "number" ? `${Number(value).toFixed(2)}` : "--",
-          },
-        ]}
-        data={readings}
-        keyExtractor={(item) => item.id}
-      />
-    </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fb",
-    padding: 16,
-  },
-  card: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  valueRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-  },
-  temperatureText: {
-    fontSize: 48,
-    fontWeight: "700",
-    color: "#ff7a59",
-  },
-  metaText: {
-    marginTop: 8,
-    color: "#555",
-  },
-  errorText: {
-    marginTop: 8,
-    color: "#c82333",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
